@@ -20,67 +20,49 @@ export default function TabsLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="dashboard"
-              color={color}
-              size={size}
-            />
+            <MaterialIcons name="dashboard" color={color} size={size} />
           ),
         }}
       />
 
-      <Tabs.Screen
-        name="inventory"
-        options={{
-          title: "Inventory",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="inventory"
-              color={color}
-              size={size}
-            />
-          ),
-        }}
-      />
+     
 
       <Tabs.Screen
         name="sales"
         options={{
           title: "Sales",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="point-of-sale"
-              color={color}
-              size={size}
-            />
+            <MaterialIcons name="point-of-sale" color={color} size={size} />
           ),
         }}
       />
-
       <Tabs.Screen
-        name="reports"
+        name="inventory"
         options={{
-          title: "Reports",
+          title: "Inventory",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="bar-chart"
-              color={color}
-              size={size}
-            />
+            <MaterialIcons name="inventory" color={color} size={size} />
           ),
         }}
       />
+      <Tabs.Screen
+        name="sales-history"
+        options={{
+          title: "History",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="receipt-long" color={color} size={size} />
+          ),
+        }}
+      />
+       
+     
 
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="settings"
-              color={color}
-              size={size}
-            />
+            <MaterialIcons name="settings" color={color} size={size} />
           ),
         }}
       />

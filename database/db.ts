@@ -1,10 +1,17 @@
 import { getDatabase } from "./sqlite";
 import { migration001 } from "./migrations/001_users";
+import { migration002 } from "./migrations/002_products";
+import { migration003 } from "./migrations/003_sales";
+import { migration004 } from "./migrations/004_sales";
+import { migration005 } from "./migrations/005_business_settings";
 
 const migrations = [
   migration001,
+  migration002,
+  migration003,
+  migration004,
+  migration005,
 ];
-
 export async function runMigrations() {
   const db = await getDatabase();
 
@@ -15,21 +22,26 @@ export async function runMigrations() {
   `);
 
   for (const migration of migrations) {
-    const alreadyRan = await db.getFirstAsync<{ version: number }>(
-      `
-      SELECT version
-      FROM schema_migrations
-      WHERE version = ?;
-      `,
-      [migration.version]
-    );
+    const alreadyRan =
+      await db.getFirstAsync<{ version: number }>(
+        `
+        SELECT version
+        FROM schema_migrations
+        WHERE version = ?;
+        `,
+        [migration.version]
+      );
 
     if (alreadyRan) {
-      console.log(`⏩ Migration ${migration.version} already applied.`);
+      console.log(
+        `⏩ Migration ${migration.version} already applied.`
+      );
       continue;
     }
 
-    console.log(`🚀 Running migration ${migration.version}...`);
+    console.log(
+      `🚀 Running migration ${migration.version}...`
+    );
 
     await migration.up(db);
 
@@ -41,10 +53,14 @@ export async function runMigrations() {
       [migration.version]
     );
 
-    console.log(`✅ Migration ${migration.version} completed.`);
+    console.log(
+      `✅ Migration ${migration.version} completed.`
+    );
   }
 
-  console.log("✅ Database migrations completed.");
+  console.log(
+    "✅ Database migrations completed."
+  );
 }
 
 export async function initializeDatabase() {

@@ -12,10 +12,12 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-
+import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import userService, { User } from "../../services/user.service";
-
+import businessSettingsService, {
+  BusinessSettings,
+} from "../../services/business_settings.service";
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
 
@@ -41,7 +43,46 @@ export default function SettingsScreen() {
   const [role, setRole] = useState("cashier");
 
   const [saving, setSaving] = useState(false);
+const [businessSettings, setBusinessSettings] =
+  useState<BusinessSettings | null>(null);
 
+const [showBusinessSettings, setShowBusinessSettings] =
+  useState(false);
+
+const [businessName, setBusinessName] = useState("");
+const [businessAddress, setBusinessAddress] = useState("");
+const [businessPhone, setBusinessPhone] = useState("");
+const [businessEmail, setBusinessEmail] = useState("");
+const [businessCurrency, setBusinessCurrency] = useState("GH₵");
+const [receiptFooter, setReceiptFooter] = useState("");
+
+const [savingBusinessSettings, setSavingBusinessSettings] =
+  useState(false);
+  const loadBusinessSettings = async () => {
+  try {
+    const data =
+      await businessSettingsService.getSettings();
+
+    setBusinessSettings(data);
+
+    setBusinessName(data.businessName);
+    setBusinessAddress(data.address);
+    setBusinessPhone(data.phone);
+    setBusinessEmail(data.email);
+    setBusinessCurrency(data.currency);
+    setReceiptFooter(data.receiptFooter);
+  } catch (error) {
+    console.error(
+      "Failed to load business settings:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "Unable to load business settings."
+    );
+  }
+};
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
@@ -58,12 +99,15 @@ export default function SettingsScreen() {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadUsers();
-    }, []),
-  );
+ useFocusEffect(
+  useCallback(() => {
+    loadUsers();
 
+    if (user?.role === "admin") {
+      loadBusinessSettings();
+    }
+  }, [user?.role]),
+);
   const resetForm = () => {
     const resetForm = () => {
       setFullName("");
@@ -197,6 +241,69 @@ export default function SettingsScreen() {
       ],
     );
   };
+  const handleSaveBusinessSettings = async () => {
+  if (user?.role !== "admin") {
+    Alert.alert(
+      "Not Allowed",
+      "Only administrators can change business settings."
+    );
+    return;
+  }
+
+  if (!businessName.trim()) {
+    Alert.alert(
+      "Validation",
+      "Business name is required."
+    );
+    return;
+  }
+
+  try {
+    setSavingBusinessSettings(true);
+
+    await businessSettingsService.updateSettings({
+      businessName,
+      address: businessAddress,
+      phone: businessPhone,
+      email: businessEmail,
+      currency: businessCurrency,
+      receiptFooter,
+    });
+
+    const updated =
+      await businessSettingsService.getSettings();
+
+    setBusinessSettings(updated);
+
+    setBusinessName(updated.businessName);
+    setBusinessAddress(updated.address);
+    setBusinessPhone(updated.phone);
+    setBusinessEmail(updated.email);
+    setBusinessCurrency(updated.currency);
+    setReceiptFooter(updated.receiptFooter);
+
+    setShowBusinessSettings(false);
+
+    Alert.alert(
+      "Success",
+      "Business settings saved successfully."
+    );
+  } catch (error) {
+    console.error(
+      "Failed to save business settings:",
+      error
+    );
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to save business settings.";
+
+    Alert.alert("Error", message);
+  } finally {
+    setSavingBusinessSettings(false);
+  }
+};
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
@@ -299,15 +406,64 @@ export default function SettingsScreen() {
           )}
         </View>
       )}
+     
+     
+       <TouchableOpacity
+        style={styles.settingItem}
+        onPress={() => router.push("/printer")}
+      >
+        <View style={styles.settingIcon}>
+          <MaterialIcons name="print" size={24} color="#1E88E5" />
+        </View>
 
+        <View style={styles.settingInfo}>
+          <Text style={styles.settingTitle}>Printer</Text>
+
+          <Text style={styles.settingDescription}>
+            Connect and manage your receipt printer
+          </Text>
+        </View>
+
+        <MaterialIcons name="chevron-right" size={24} color="#999" />
+      </TouchableOpacity>
       {/* Logout */}
+      {user?.role === "admin" && (
+  <TouchableOpacity
+    style={styles.settingItem}
+    onPress={() => setShowBusinessSettings(true)}
+  >
+    <View style={styles.settingIcon}>
+      <MaterialIcons
+        name="business"
+        size={24}
+        color="#1E88E5"
+      />
+    </View>
+
+    <View style={styles.settingInfo}>
+      <Text style={styles.settingTitle}>
+        Business Settings
+      </Text>
+
+      <Text style={styles.settingDescription}>
+        Manage business information printed on receipts
+      </Text>
+    </View>
+
+    <MaterialIcons
+      name="chevron-right"
+      size={24}
+      color="#999"
+    />
+  </TouchableOpacity>
+)}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <MaterialIcons name="logout" size={22} color="#D32F2F" />
 
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
-
+      
       <Text style={styles.version}>SmartPOS Version 1.0.0</Text>
       <Modal
         visible={showChangePassword}
@@ -476,6 +632,128 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      <Modal
+  visible={showBusinessSettings}
+  animationType="slide"
+  transparent
+  onRequestClose={() =>
+    setShowBusinessSettings(false)
+  }
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modal}>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>
+          Business Settings
+        </Text>
+
+        <TouchableOpacity
+          onPress={() =>
+            setShowBusinessSettings(false)
+          }
+        >
+          <MaterialIcons
+            name="close"
+            size={26}
+            color="#555"
+          />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.label}>
+          Business Name *
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Enter business name"
+          value={businessName}
+          onChangeText={setBusinessName}
+        />
+
+        <Text style={styles.label}>
+          Address
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Enter business address"
+          value={businessAddress}
+          onChangeText={setBusinessAddress}
+        />
+
+        <Text style={styles.label}>
+          Phone Number
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Enter phone number"
+          value={businessPhone}
+          onChangeText={setBusinessPhone}
+          keyboardType="phone-pad"
+        />
+
+        <Text style={styles.label}>
+          Email
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Enter business email"
+          value={businessEmail}
+          onChangeText={setBusinessEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>
+          Currency
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="GH₵"
+          value={businessCurrency}
+          onChangeText={setBusinessCurrency}
+        />
+
+        <Text style={styles.label}>
+          Receipt Footer
+        </Text>
+
+        <TextInput
+          style={[
+            styles.input,
+           
+          ]}
+          placeholder="Thank you for your business."
+          value={receiptFooter}
+          onChangeText={setReceiptFooter}
+          multiline
+          textAlignVertical="top"
+        />
+
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={handleSaveBusinessSettings}
+          disabled={savingBusinessSettings}
+        >
+          {savingBusinessSettings ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>
+              SAVE BUSINESS SETTINGS
+            </Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  </View>
+</Modal>
     </ScrollView>
   );
 }
@@ -643,9 +921,32 @@ const styles = StyleSheet.create({
     color: "#1E88E5",
     textTransform: "capitalize",
   },
-
+  settingItem: {
+    backgroundColor: "#1E88E5",
+    borderRadius: 12,
+    padding: 15,
+   marginTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  settingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#E3F2FD",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  settingInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
+  settingTitle: { fontSize: 15, fontWeight: "800", color: "white" },
+  settingDescription: {
+    fontSize: 12,
+    color: "white",
+    marginTop: 4,
+    lineHeight: 17,
+  },
   logoutButton: {
-    marginTop: 30,
+    marginTop: 10,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 18,
