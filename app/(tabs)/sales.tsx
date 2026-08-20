@@ -694,10 +694,16 @@ const handleBarcodeScanned = ({
 
         {/* PRODUCTS */}
 
-      <ScrollView showsVerticalScrollIndicator={true} style={styles.productList}>
+      <View style={styles.productSection}>
           <Text style={styles.sectionTitle}>
-          Products
-        </Text>
+            Products
+          </Text>
+
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            style={styles.productList}
+            contentContainerStyle={styles.productListContent}
+          >
 
         {loading ? (
           <ActivityIndicator
@@ -856,7 +862,9 @@ const handleBarcodeScanned = ({
           )
         )}
 
-      </ScrollView>
+          </ScrollView>
+        </View>
+
         {/* CART */}
 
         <View style={styles.cartHeader}>
@@ -1423,6 +1431,7 @@ const styles = StyleSheet.create({
   },
 
   content: {
+    flex: 1,
     padding: 20,
     paddingBottom: 40,
   },
@@ -1437,8 +1446,14 @@ const styles = StyleSheet.create({
     color: "#222",
   },
   productList:{
-    maxHeight: 300,
-    overflow: "scroll",
+    flex: 1,
+    marginBottom: 14,
+  },
+  productListContent: {
+    paddingBottom: 10,
+  },
+  productSection: {
+    flex: 1,
   },
 
   subtitle: {

@@ -26,6 +26,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "backgroundColor": "#1E88E5",
+      "resizeMode": "contain"
+    },
     "plugins": [
       "expo-router",
       "expo-sqlite",

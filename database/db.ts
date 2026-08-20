@@ -4,13 +4,14 @@ import { migration002 } from "./migrations/002_products";
 import { migration003 } from "./migrations/003_sales";
 import { migration004 } from "./migrations/004_sales";
 import { migration005 } from "./migrations/005_business_settings";
-
+import { migration006 } from "./migrations/006_product_barcodes";
 const migrations = [
   migration001,
   migration002,
   migration003,
   migration004,
   migration005,
+  migration006,
 ];
 export async function runMigrations() {
   const db = await getDatabase();
