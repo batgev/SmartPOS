@@ -567,7 +567,7 @@ if (printerService.getConnectedDevice()) {
   setShowScanner(true);
 };
 
-const handleBarcodeScanned = ({
+const handleBarcodeScanned = async ({
   data,
 }: {
   data: string;
@@ -580,15 +580,66 @@ const handleBarcodeScanned = ({
 
   const barcode = data.trim();
 
-  const product = products.find(
-    (item) =>
-      item.barcode?.trim() === barcode
-  );
+  if (!barcode) {
+    setScanning(false);
+    return;
+  }
 
-  if (!product) {
+  try {
+    const result =
+      await productService.findProductByBarcode(
+        barcode
+      );
+
+    if (!result) {
+      Alert.alert(
+        "Product Not Found",
+        `No product was found with barcode:\n${barcode}`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setScanning(false);
+            },
+          },
+        ]
+      );
+
+      return;
+    }
+
+    const { product } = result;
+
+    if (product.stockQuantity <= 0) {
+      Alert.alert(
+        "Out of Stock",
+        `${product.name} has no stock available.`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setScanning(false);
+            },
+          },
+        ]
+      );
+
+      return;
+    }
+
+    addToCart(product);
+
+    setShowScanner(false);
+    setScanning(false);
+  } catch (error) {
+    console.error(
+      "Failed to find product by barcode:",
+      error
+    );
+
     Alert.alert(
-      "Product Not Found",
-      `No product was found with barcode:\n${barcode}`,
+      "Scan Error",
+      "Unable to find the product for this barcode.",
       [
         {
           text: "OK",
@@ -598,31 +649,7 @@ const handleBarcodeScanned = ({
         },
       ]
     );
-
-    return;
   }
-
-  if (product.stockQuantity <= 0) {
-    Alert.alert(
-      "Out of Stock",
-      `${product.name} has no stock available.`,
-      [
-        {
-          text: "OK",
-          onPress: () => {
-            setScanning(false);
-          },
-        },
-      ]
-    );
-
-    return;
-  }
-
-  addToCart(product);
-
-  setShowScanner(false);
-  setScanning(false);
 };
   // =========================
   // UI

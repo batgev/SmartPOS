@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from "react";
 
 import {
@@ -39,9 +38,13 @@ export default function InventoryScreen() {
   // =========================
 
   const [showScanner, setShowScanner] = useState(false);
+
   const [scannerTarget, setScannerTarget] = useState<
     "add" | "edit"
   >("add");
+
+  const [scannerBarcodeIndex, setScannerBarcodeIndex] =
+    useState<number | null>(null);
 
   const [permission, requestPermission] =
     useCameraPermissions();
@@ -56,13 +59,22 @@ export default function InventoryScreen() {
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
+
   const [sku, setSku] = useState("");
-  const [barcode, setBarcode] = useState("");
+
+  const [barcodes, setBarcodes] = useState<string[]>([
+    "",
+  ]);
+
   const [category, setCategory] = useState("");
+
   const [buyingPrice, setBuyingPrice] = useState("");
+
   const [sellingPrice, setSellingPrice] = useState("");
+
   const [lowStockThreshold, setLowStockThreshold] =
     useState("5");
+
   const [unit, setUnit] = useState("pcs");
 
   // =========================
@@ -76,15 +88,22 @@ export default function InventoryScreen() {
     useState<Product | null>(null);
 
   const [editName, setEditName] = useState("");
+
   const [editSku, setEditSku] = useState("");
+
   const [editBarcode, setEditBarcode] = useState("");
+
   const [editCategory, setEditCategory] = useState("");
+
   const [editBuyingPrice, setEditBuyingPrice] =
     useState("");
+
   const [editSellingPrice, setEditSellingPrice] =
     useState("");
+
   const [editLowStockThreshold, setEditLowStockThreshold] =
     useState("");
+
   const [editUnit, setEditUnit] = useState("pcs");
 
   const [updating, setUpdating] = useState(false);
@@ -145,11 +164,51 @@ export default function InventoryScreen() {
   );
 
   // =========================
+  // ADD PRODUCT BARCODE HELPERS
+  // =========================
+
+  const addBarcodeField = () => {
+    setBarcodes((current) => [
+      ...current,
+      "",
+    ]);
+  };
+
+  const updateBarcode = (
+    index: number,
+    value: string
+  ) => {
+    setBarcodes((current) =>
+      current.map((barcode, currentIndex) =>
+        currentIndex === index
+          ? value
+          : barcode
+      )
+    );
+  };
+
+  const removeBarcodeField = (
+    index: number
+  ) => {
+    setBarcodes((current) => {
+      if (current.length === 1) {
+        return [""];
+      }
+
+      return current.filter(
+        (_, currentIndex) =>
+          currentIndex !== index
+      );
+    });
+  };
+
+  // =========================
   // BARCODE SCANNER
   // =========================
 
   const openScanner = async (
-    target: "add" | "edit"
+    target: "add" | "edit",
+    barcodeIndex?: number
   ) => {
     if (!permission) {
       return;
@@ -170,6 +229,18 @@ export default function InventoryScreen() {
     }
 
     setScannerTarget(target);
+
+    if (
+      target === "add" &&
+      typeof barcodeIndex === "number"
+    ) {
+      setScannerBarcodeIndex(
+        barcodeIndex
+      );
+    } else {
+      setScannerBarcodeIndex(null);
+    }
+
     setShowScanner(true);
   };
 
@@ -182,17 +253,37 @@ export default function InventoryScreen() {
       return;
     }
 
+    const scannedBarcode = data.trim();
+
+    if (!scannedBarcode) {
+      return;
+    }
+
     setShowScanner(false);
 
     if (scannerTarget === "add") {
-      setBarcode(data);
+      const targetIndex =
+        scannerBarcodeIndex ?? 0;
+
+      setBarcodes((current) =>
+        current.map(
+          (barcode, index) =>
+            index === targetIndex
+              ? scannedBarcode
+              : barcode
+        )
+      );
     } else {
-      setEditBarcode(data);
+      setEditBarcode(
+        scannedBarcode
+      );
     }
+
+    setScannerBarcodeIndex(null);
 
     Alert.alert(
       "Barcode Scanned",
-      `Barcode: ${data}`
+      `Barcode: ${scannedBarcode}`
     );
   };
 
@@ -202,12 +293,19 @@ export default function InventoryScreen() {
 
   const resetForm = () => {
     setName("");
+
     setSku("");
-    setBarcode("");
+
+    setBarcodes([""]);
+
     setCategory("");
+
     setBuyingPrice("");
+
     setSellingPrice("");
+
     setLowStockThreshold("5");
+
     setUnit("pcs");
   };
 
@@ -217,6 +315,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter the product name."
       );
+
       return;
     }
 
@@ -225,6 +324,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter the selling price."
       );
+
       return;
     }
 
@@ -248,6 +348,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a valid buying price."
       );
+
       return;
     }
 
@@ -259,6 +360,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a valid selling price."
       );
+
       return;
     }
 
@@ -270,6 +372,37 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a valid low-stock threshold."
       );
+
+      return;
+    }
+
+    // ----------------------------------
+    // CLEAN BARCODE LIST
+    // ----------------------------------
+
+    const cleanedBarcodes =
+      barcodes
+        .map((value) =>
+          value.trim()
+        )
+        .filter(Boolean);
+
+    // ----------------------------------
+    // CHECK FOR DUPLICATE BARCODES
+    // ----------------------------------
+
+    const uniqueBarcodes =
+      new Set(cleanedBarcodes);
+
+    if (
+      uniqueBarcodes.size !==
+      cleanedBarcodes.length
+    ) {
+      Alert.alert(
+        "Validation",
+        "The same barcode cannot be added more than once to the same product."
+      );
+
       return;
     }
 
@@ -277,14 +410,37 @@ export default function InventoryScreen() {
       setSaving(true);
 
       await productService.createProduct({
-        name,
-        sku,
-        barcode,
-        category,
+        name: name.trim(),
+
+        sku: sku.trim(),
+
+        barcodes:
+          cleanedBarcodes.map(
+            (barcode, index) => ({
+              barcode,
+
+              barcodeType:
+                "unknown",
+
+              unitQuantity: 1,
+
+              isPrimary:
+                index === 0,
+            })
+          ),
+
+        category:
+          category.trim(),
+
         buyingPrice: buying,
+
         sellingPrice: selling,
-        lowStockThreshold: threshold,
-        unit,
+
+        lowStockThreshold:
+          threshold,
+
+        unit:
+          unit.trim() || "pcs",
       });
 
       Alert.alert(
@@ -327,22 +483,31 @@ export default function InventoryScreen() {
     setEditingProduct(product);
 
     setEditName(product.name);
-    setEditSku(product.sku ?? "");
+
+    setEditSku(
+      product.sku ?? ""
+    );
+
     setEditBarcode(
       product.barcode ?? ""
     );
+
     setEditCategory(
       product.category ?? ""
     );
+
     setEditBuyingPrice(
       product.buyingPrice.toString()
     );
+
     setEditSellingPrice(
       product.sellingPrice.toString()
     );
+
     setEditLowStockThreshold(
       product.lowStockThreshold.toString()
     );
+
     setEditUnit(product.unit);
 
     setShowEditProduct(true);
@@ -358,6 +523,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter the product name."
       );
+
       return;
     }
 
@@ -378,6 +544,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a valid buying price."
       );
+
       return;
     }
 
@@ -389,6 +556,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a valid selling price."
       );
+
       return;
     }
 
@@ -400,6 +568,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a valid low-stock threshold."
       );
+
       return;
     }
 
@@ -410,13 +579,20 @@ export default function InventoryScreen() {
         editingProduct.id,
         {
           name: editName,
+
           sku: editSku,
+
           barcode: editBarcode,
+
           category: editCategory,
+
           buyingPrice: buying,
+
           sellingPrice: selling,
+
           lowStockThreshold:
             threshold,
+
           unit: editUnit,
         }
       );
@@ -427,6 +603,7 @@ export default function InventoryScreen() {
       );
 
       setShowEditProduct(false);
+
       setEditingProduct(null);
 
       await loadProducts();
@@ -465,6 +642,7 @@ export default function InventoryScreen() {
           text: "Cancel",
           style: "cancel",
         },
+
         {
           text: "Delete",
           style: "destructive",
@@ -509,8 +687,11 @@ export default function InventoryScreen() {
 
   const resetStockInForm = () => {
     setStockInProduct(null);
+
     setStockInQuantity("");
+
     setStockInReference("");
+
     setStockInNotes("");
   };
 
@@ -520,6 +701,7 @@ export default function InventoryScreen() {
         "No Products",
         "Please create a product before adding stock."
       );
+
       return;
     }
 
@@ -534,6 +716,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please select a product."
       );
+
       return;
     }
 
@@ -548,6 +731,7 @@ export default function InventoryScreen() {
         "Validation",
         "Please enter a quantity greater than zero."
       );
+
       return;
     }
 
@@ -556,6 +740,7 @@ export default function InventoryScreen() {
         "Error",
         "Unable to identify the current user."
       );
+
       return;
     }
 
@@ -656,7 +841,9 @@ export default function InventoryScreen() {
             <TouchableOpacity
               style={styles.addButton}
               onPress={() =>
-                setShowAddProduct(true)
+                setShowAddProduct(
+                  true
+                )
               }
             >
               <MaterialIcons
@@ -904,52 +1091,130 @@ export default function InventoryScreen() {
                 autoCapitalize="none"
               />
 
+              {/* MULTIPLE BARCODES */}
+
               <Text
                 style={styles.label}
               >
-                Barcode
+                Barcodes
               </Text>
 
-              <View
+              <Text
                 style={
-                  styles.barcodeInputRow
+                  styles.barcodeHint
                 }
               >
-                <TextInput
-                  style={
-                    styles.barcodeInput
-                  }
-                  placeholder="Scan or enter barcode"
-                  value={barcode}
-                  onChangeText={
-                    setBarcode
-                  }
-                  autoCapitalize="none"
-                />
+                Add one or more barcodes for this product.
+                The first barcode will be the primary barcode.
+              </Text>
 
-                <TouchableOpacity
-                  style={
-                    styles.scanButton
-                  }
-                  onPress={() =>
-                    openScanner("add")
-                  }
-                >
-                  <MaterialIcons
-                    name="qr-code-scanner"
-                    size={23}
-                    color="#FFFFFF"
-                  />
-
-                  <Text
+              {barcodes.map(
+                (barcode, index) => (
+                  <View
+                    key={index}
                     style={
-                      styles.scanButtonText
+                      styles.multipleBarcodeRow
                     }
                   >
-                    Scan
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                    <View
+                      style={
+                        styles.barcodeNumber
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.barcodeNumberText
+                        }
+                      >
+                        {index + 1}
+                      </Text>
+                    </View>
+
+                    <TextInput
+                      style={
+                        styles.multipleBarcodeInput
+                      }
+                      placeholder={
+                        index === 0
+                          ? "Primary barcode"
+                          : "Additional barcode"
+                      }
+                      value={barcode}
+                      onChangeText={(
+                        value
+                      ) =>
+                        updateBarcode(
+                          index,
+                          value
+                        )
+                      }
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+
+                    <TouchableOpacity
+                      style={
+                        styles.barcodeScanButton
+                      }
+                      onPress={() =>
+                        openScanner(
+                          "add",
+                          index
+                        )
+                      }
+                    >
+                      <MaterialIcons
+                        name="qr-code-scanner"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                    </TouchableOpacity>
+
+                    {barcodes.length >
+                      1 && (
+                      <TouchableOpacity
+                        style={
+                          styles.removeBarcodeButton
+                        }
+                        onPress={() =>
+                          removeBarcodeField(
+                            index
+                          )
+                        }
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={21}
+                          color="#D32F2F"
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )
+              )}
+
+              <TouchableOpacity
+                style={
+                  styles.addBarcodeButton
+                }
+                onPress={
+                  addBarcodeField
+                }
+              >
+                <MaterialIcons
+                  name="add"
+                  size={20}
+                  color="#1E88E5"
+                />
+
+                <Text
+                  style={
+                    styles.addBarcodeText
+                  }
+                >
+                  Add Another Barcode
+                </Text>
+              </TouchableOpacity>
 
               <Text
                 style={styles.label}
@@ -1335,6 +1600,7 @@ export default function InventoryScreen() {
               <TouchableOpacity
                 onPress={() => {
                   resetStockInForm();
+
                   setShowStockIn(
                     false
                   );
@@ -1557,7 +1823,9 @@ export default function InventoryScreen() {
         }
       >
         <View
-          style={styles.scannerContainer}
+          style={
+            styles.scannerContainer
+          }
         >
           <CameraView
             style={styles.camera}
@@ -1904,6 +2172,85 @@ const styles = StyleSheet.create({
     backgroundColor: "#FAFAFA",
   },
 
+  // =========================
+  // MULTIPLE BARCODE STYLES
+  // =========================
+
+  barcodeHint: {
+    fontSize: 12,
+    color: "#777",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+
+  multipleBarcodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  barcodeNumber: {
+    width: 28,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "#E3F2FD",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+  },
+
+  barcodeNumberText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1E88E5",
+  },
+
+  multipleBarcodeInput: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    backgroundColor: "#FAFAFA",
+  },
+
+  barcodeScanButton: {
+    width: 48,
+    height: 48,
+    marginLeft: 6,
+    borderRadius: 8,
+    backgroundColor: "#1E88E5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  removeBarcodeButton: {
+    width: 40,
+    height: 48,
+    marginLeft: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFEBEE",
+  },
+
+  addBarcodeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+  },
+
+  addBarcodeText: {
+    color: "#1E88E5",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
   barcodeInputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2133,4 +2480,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-
